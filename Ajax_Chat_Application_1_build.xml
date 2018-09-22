@@ -1,0 +1,170 @@
+<?xml version="1.0" ?>
+<project name="Ajax_Chat_Application_1" default="redeploy">
+	<property file="Ajax_Chat_Application_1_build.properties" />
+
+	<tstamp prefix="build-info">
+		<format property="current-date" pattern="d-MMMM-yyyy" locale="en" />
+		<format property="current-time" pattern="hh:mm:ss a z" locale="en" />
+		<format property="year-month-day" pattern="yyyy-MM-dd" locale="en" />
+	</tstamp>
+
+	<path id="compile.classpath">
+		<fileset dir="${web.directory}/WEB-INF/lib">
+			<include name="*.jar" />
+		</fileset>
+	</path>
+
+	<target name="init">
+		<mkdir dir="build/classes" />
+		<mkdir dir="dist" />
+	</target>
+
+	<!-- Compile all java classes -->
+	<target name="compile" depends="init">
+		<javac destdir="build/classes" debug="true" srcdir="src">
+			<classpath refid="compile.classpath" />
+		</javac>
+	</target>
+
+	<!-- Generate War -->
+	<target name="war" depends="compile,copy-readme">
+		<war destfile="dist/${war.file-name}" webxml="${web.directory}/WEB-INF/web.xml">
+			<fileset dir="${web.directory}" />
+			<lib dir="${web.directory}/WEB-INF/lib" />
+			<classes dir="build/classes" />
+
+			<manifest>
+				<attribute name="Author" value="${author}" />
+				<attribute name="Built-On" value="${build-info.current-date}" />
+				<attribute name="Built-At" value="${build-info.current-time}" />
+			</manifest>
+		</war>
+	</target>
+
+	<!-- Clean -->
+	<target name="clean">
+		<delete dir="dist" />
+		<delete dir="build" />
+		<delete dir="${tomcat.home}\webapps\${project.name}"/>
+		<delete file="${tomcat.home}\webapps\${war.file-name}"/>
+	</target>
+
+	<target name="redeploy" depends="stop-tomcat,clean-tomcat,war,copy-war-to-tomcat"/>
+
+	<!-- 
+	 1) Copy only web-content(jsp,css,js,html...) to the tomcat/webapps folder 
+	 2) Copy all the contents of the 'WebContent' directory with the exception of 'WEB-INF' directory.
+	-->
+	<target name="copy-web">
+			<echo message="---------------------------------------"></echo>
+			<echo> Copying web resources to tomcat...</echo>
+		
+		    <!--From : Project/WebContent/pages directory ::: To: Project/pages-->
+			<copy todir="${tomcat.home}/webapps/${project.name}/${jsp.directory}">
+			    <fileset dir="./${web.directory}/${jsp.directory}"/>
+			</copy>
+
+		 <!--From : WebContent/ReadMe directory ::: To: Project/ReadMe-->
+					<copy todir="${tomcat.home}/webapps/${project.name}/${readme.directory}">
+					    <fileset dir="./${web.directory}/${readme.directory}"/>
+					</copy>
+		
+		 <!--From : WebContent/resources directory ::: To: Project/resources-->
+					<copy todir="${tomcat.home}/webapps/${project.name}/${resources.directory}">
+					    <fileset dir="./${web.directory}/${resources.directory}"/>
+					</copy>
+		
+		 <!--From : WebContent/index.jsp ::: To: Project/index.jsp-->
+					<copy todir="${tomcat.home}/webapps/${project.name}/${jsp.directory}">
+					    <fileset dir="./${web.directory}/${jsp.directory}"/>
+					</copy>
+		
+		<copy  tofile="${tomcat.home}/webapps/${project.name}/${jsp.index.page}" file="./${web.directory}/${jsp.index.page}"/>
+		
+			<echo> Web content exported sucessfully to tomcat/webapps folder.</echo>
+			<echo message="---------------------------------------"></echo>
+		</target>
+	
+	<!-- Copy war from 'dist' to 'tomcat/webapps' directory -->
+	<target name="copy-war-to-tomcat">
+		<echo message="---------------------------------------"></echo>
+		<echo> Copying war to tomcat...</echo>
+		<copy  tofile="${tomcat.home}/webapps/${war.file-name}" file="dist/${war.file-name}"/>
+		<echo> War copied sucessfully.</echo>
+		<echo message="---------------------------------------"></echo>
+	</target>
+	
+	<!-- Delete project from tomcat webapps and work directories -->
+	<target name="clean-tomcat">
+		<echo message="---------------------------------------"></echo>
+		<echo> Cleaning tomcat...</echo>
+		<echo message="cleaning work directory."/>
+		<delete dir="${tomcat.home}/work/catalina/localhost/${project.name}" />
+		<echo message="deleting war file."/>
+		<delete file="${tomcat.home}/webapps/${war.file-name}"/>
+		<echo message="deleting project directory from webapps."/>
+		<delete dir="${tomcat.home}/webapps/${project.name}" />
+		<echo message="tomcat cache cleaned sucessfully."/>
+		<echo> Tomcat clean complete.</echo>
+		<echo message="---------------------------------------"></echo>
+	</target>
+
+	<!-- Stop Tomcat -->
+	<target name="stop-tomcat">
+		<echo message="---------------------------------------"></echo>
+		<echo message="Stopping tomcat..."> </echo>
+		
+		<java classname="org.apache.catalina.startup.Bootstrap" fork="true">
+			<classpath path="${tomcat.home}/bin/bootstrap.jar:${tomcat.home}/bin/tomcat-juli.jar" />
+			<jvmarg value="-Dcatalina.home=${tomcat.home}" />
+			<arg line="stop" />
+		</java>
+		<sleep seconds="5"/> 
+		<echo> Tomcat stopped.</echo>
+		<echo message="---------------------------------------"></echo>
+	</target>
+
+	<!-- Start Tomcat -->
+	<target name="start-tomcat">
+		<echo message="---------------------------------------"></echo>
+		<echo message="Starting tomcat..."> </echo>
+		<java classname="org.apache.catalina.startup.Bootstrap" failonerror="true" fork="true">
+			<classpath path="${tomcat.home}/bin/bootstrap.jar:${tomcat.home}/bin/tomcat-juli.jar" />
+			<jvmarg value="-Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager" />
+			<jvmarg value="-Djava.util.logging.config.file=${tomcat.home}/conf/logging.properties" />
+			<jvmarg value="-Dcatalina.home=${tomcat.home}" />
+			<jvmarg value="-Dcatalina.base=${tomcat.home}" />
+			<jvmarg value="-Djava.io.tmpdir=${tomcat.home}/temp" />
+		
+			<arg line="start" />
+		</java>
+		<echo message="Tomcat started."> </echo>
+		<echo message="---------------------------------------"></echo>
+	</target>
+	
+	<!--Copies resources/resourcebundle/messages.properties to /Web-Inf/classes folder -->
+	<target name="copy-resource-bundle">
+		<echo message="---------------------------------------"></echo>
+		<echo message="Copying resource bundle..."> </echo>
+		<echo message="tofile:"/>
+		<echo message="${web.directory}/WEB-INF/classes/${app.resource.bundle.file.location}/${app.resource.bundle.file.name}"/>
+		<echo message="from file: "/>
+		<echo message="${web.directory}/resources/${app.resource.bundle.file.location}/${app.resource.bundle.file.name}"/>
+		
+		<copy  file="${web.directory}/resources/${app.resource.bundle.file.location}/${app.resource.bundle.file.name}" 
+			tofile="${web.directory}/WEB-INF/classes/${app.resource.bundle.file.location}/${app.resource.bundle.file.name}"  overwrite="true"/>
+		
+		<echo message="---------------------------------------"></echo>
+	</target>
+	
+	<!-- Copies the whole 'ReadMe' folder directly inside the project folder. -->
+	<target name="copy-readme">
+		<echo message="---------------------------------------"></echo>
+		<echo message="copying ReadMe..."> </echo>
+		<copy todir="${web.directory}/${readme.directory}">
+		        <fileset dir="${readme.directory}"/>
+		</copy>
+		<echo message="copy complete"/> 
+	</target>
+
+</project>
